@@ -1,8 +1,11 @@
 package ru.dbms.model;
 
-/** Описание одной колонки таблицы: имя и тип хранимых значений. */
-public class Column {
+import java.io.Serializable;
 
+/** Описание одной колонки таблицы: имя и тип хранимых значений. */
+public class Column implements Serializable {
+
+    private static final long serialVersionUID = 1L;
     private final String name;
     private final ColumnType type;
 
