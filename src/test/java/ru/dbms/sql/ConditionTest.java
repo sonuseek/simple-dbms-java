@@ -14,7 +14,7 @@ class ConditionTest {
     private Row student() {
         Row row = new Row();
         row.set("id", 1);
-        row.set("name", "Нейгум София");
+        row.set("name", "Нейгум Софья");
         row.set("scholarship", 8000.0);
         row.set("birth_date", LocalDate.of(2006, 3, 15));
         row.set("is_budget", true);
@@ -52,7 +52,7 @@ class ConditionTest {
 
     @Test
     void comparesStrings() {
-        assertTrue(matches("name", "=", "Нейгум София"));
+        assertTrue(matches("name", "=", "Нейгум Софья"));
         assertTrue(matches("name", "<>", "Иванов"));
     }
 

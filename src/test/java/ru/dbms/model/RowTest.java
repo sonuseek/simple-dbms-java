@@ -16,13 +16,13 @@ class RowTest {
     void storesAndReturnsValues() {
         Row row = new Row();
         row.set("id", 1);
-        row.set("name", "Нейгум София");
+        row.set("name", "Нейгум Софья");
         row.set("scholarship", 8000.0);
         row.set("birth_date", LocalDate.of(2006, 3, 15));
         row.set("is_budget", true);
 
         assertEquals(1, row.get("id"));
-        assertEquals("Нейгум София", row.get("name"));
+        assertEquals("Нейгум Софья", row.get("name"));
         assertEquals(8000.0, row.get("scholarship"));
         assertEquals(LocalDate.of(2006, 3, 15), row.get("birth_date"));
         assertEquals(true, row.get("is_budget"));
@@ -53,7 +53,7 @@ class RowTest {
     void keepsColumnOrder() {
         Row row = new Row();
         row.set("id", 1);
-        row.set("name", "Нейгум София");
+        row.set("name", "Нейгум Софья");
         row.set("group_id", 3);
         assertEquals("[id, name, group_id]", row.getValues().keySet().toString());
     }

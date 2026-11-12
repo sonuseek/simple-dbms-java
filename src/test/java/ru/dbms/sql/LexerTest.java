@@ -34,9 +34,9 @@ class LexerTest {
     @Test
     void readsInsertWithValues() {
         assertEquals("IDENTIFIER(INSERT) IDENTIFIER(INTO) IDENTIFIER(students) IDENTIFIER(VALUES) "
-                        + "SYMBOL(() NUMBER(1) SYMBOL(,) STRING(Нейгум София) SYMBOL(,) "
+                        + "SYMBOL(() NUMBER(1) SYMBOL(,) STRING(Нейгум Софья) SYMBOL(,) "
                         + "NUMBER(8000.0) SYMBOL(,) IDENTIFIER(TRUE) SYMBOL()) SYMBOL(;)",
-                dump("INSERT INTO students VALUES (1, 'Нейгум София', 8000.0, TRUE);"));
+                dump("INSERT INTO students VALUES (1, 'Нейгум Софья', 8000.0, TRUE);"));
     }
 
     @Test

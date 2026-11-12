@@ -47,16 +47,16 @@ class TableTest {
     @Test
     void insertsAndFindsRow() {
         Table table = students();
-        table.insert(student(1, "Нейгум София"));
+        table.insert(student(1, "Нейгум Софья"));
 
         assertEquals(1, table.size());
-        assertEquals("Нейгум София", table.findByKey(1).get("name"));
+        assertEquals("Нейгум Софья", table.findByKey(1).get("name"));
     }
 
     @Test
     void fillsMissingColumnsWithNull() {
         Table table = students();
-        table.insert(student(1, "Нейгум София"));
+        table.insert(student(1, "Нейгум Софья"));
 
         Row stored = table.findByKey(1);
         assertTrue(stored.has("scholarship"));
@@ -68,7 +68,7 @@ class TableTest {
     @Test
     void rejectsDuplicatePrimaryKey() {
         Table table = students();
-        table.insert(student(1, "Нейгум София"));
+        table.insert(student(1, "Нейгум Софья"));
 
         assertThrows(IllegalArgumentException.class, () -> table.insert(student(1, "Иванов")));
     }
@@ -85,7 +85,7 @@ class TableTest {
     @Test
     void rejectsUnknownColumn() {
         Table table = students();
-        Row row = student(1, "Нейгум София");
+        Row row = student(1, "Нейгум Софья");
         row.set("unknown", 5);
 
         assertThrows(IllegalArgumentException.class, () -> table.insert(row));
@@ -94,7 +94,7 @@ class TableTest {
     @Test
     void rejectsWrongType() {
         Table table = students();
-        Row row = student(1, "Нейгум София");
+        Row row = student(1, "Нейгум Софья");
         row.set("scholarship", "много");
 
         assertThrows(IllegalArgumentException.class, () -> table.insert(row));
@@ -103,7 +103,7 @@ class TableTest {
     @Test
     void deletesByKey() {
         Table table = students();
-        table.insert(student(1, "Нейгум София"));
+        table.insert(student(1, "Нейгум Софья"));
 
         assertTrue(table.deleteByKey(1));
         assertFalse(table.deleteByKey(1));
@@ -113,7 +113,7 @@ class TableTest {
     @Test
     void iteratesInInsertionOrder() {
         Table table = students();
-        table.insert(student(1, "Нейгум София"));
+        table.insert(student(1, "Нейгум Софья"));
         table.insert(student(2, "Иванов"));
 
         List<Object> names = new ArrayList<>();
@@ -121,7 +121,7 @@ class TableTest {
             names.add(row.get("name"));
         }
 
-        assertEquals("[Нейгум София, Иванов]", names.toString());
+        assertEquals("[Нейгум Софья, Иванов]", names.toString());
     }
 
     @Test

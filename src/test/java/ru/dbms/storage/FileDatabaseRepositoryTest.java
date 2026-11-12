@@ -39,7 +39,7 @@ class FileDatabaseRepositoryTest {
 
         Row student = new Row();
         student.set("id", 1);
-        student.set("name", "Нейгум София");
+        student.set("name", "Нейгум Софья");
         student.set("scholarship", 8000.0);
         student.set("birth_date", LocalDate.of(2006, 3, 15));
         student.set("is_budget", true);
@@ -75,7 +75,7 @@ class FileDatabaseRepositoryTest {
 
         Row student = repository.load().getTable("students").findByKey(1);
 
-        assertEquals("Нейгум София", student.get("name"));
+        assertEquals("Нейгум Софья", student.get("name"));
         assertEquals(8000.0, student.get("scholarship"));
         assertEquals(LocalDate.of(2006, 3, 15), student.get("birth_date"));
         assertEquals(true, student.get("is_budget"));
