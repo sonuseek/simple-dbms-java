@@ -1,25 +1,29 @@
 package ru.dbms.model;
 
+import ru.dbms.index.Index;
+
 import java.io.Serializable;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
- * Таблица базы данных: схема колонок и хранимые строки.
- * Строки индексируются по значению первичного ключа, что даёт
+ * Таблица базы данных: схема колонок, хранимые строки и индексы.
+ * Строки хранятся по значению первичного ключа, что даёт
  * быструю проверку уникальности при вставке.
  */
 public class Table implements Serializable, Iterable<Row> {
 
-    private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 2L;
 
     private final String name;
     private final List<Column> columns;
     private final String primaryKey;
     private final Map<Object, Row> rows = new LinkedHashMap<>();
+    private final Map<String, Index> indexes = new LinkedHashMap<>();
 
     /** Создаёт таблицу с указанной схемой и первичным ключом. */
     public Table(String name, List<Column> columns, String primaryKey) {
@@ -116,6 +120,7 @@ public class Table implements Serializable, Iterable<Row> {
         }
 
         rows.put(key, normalized);
+        addToIndexes(normalized, key);
     }
 
     /**
@@ -160,8 +165,82 @@ public class Table implements Serializable, Iterable<Row> {
             }
             rows.remove(key);
         }
+
+        removeFromIndexes(existing, key);
         rows.put(newKey, updated);
+        addToIndexes(updated, newKey);
         return true;
+    }
+
+    /** Удаляет строку по первичному ключу. Возвращает true, если строка была удалена. */
+    public boolean deleteByKey(Object key) {
+        Row removed = rows.remove(key);
+        if (removed == null) {
+            return false;
+        }
+        removeFromIndexes(removed, key);
+        return true;
+    }
+
+    /**
+     * Создаёт индекс по колонке и заполняет его имеющимися строками.
+     *
+     * @param indexName имя индекса, должно быть свободно
+     * @param columnName колонка таблицы, по которой строится индекс
+     */
+    public void createIndex(String indexName, String columnName) {
+        if (indexes.containsKey(indexName)) {
+            throw new IllegalArgumentException("Индекс уже существует: " + indexName);
+        }
+        if (getColumn(columnName) == null) {
+            throw new IllegalArgumentException(
+                    "Колонка не найдена в таблице " + name + ": " + columnName);
+        }
+
+        Index index = new Index(indexName, columnName);
+        for (Map.Entry<Object, Row> entry : rows.entrySet()) {
+            index.add(entry.getValue().get(columnName), entry.getKey());
+        }
+        indexes.put(indexName, index);
+    }
+
+    /** Удаляет индекс. Возвращает true, если индекс существовал. */
+    public boolean dropIndex(String indexName) {
+        return indexes.remove(indexName) != null;
+    }
+
+    /** Возвращает индекс по имени или null. */
+    public Index getIndex(String indexName) {
+        return indexes.get(indexName);
+    }
+
+    /** Возвращает имена всех индексов таблицы. */
+    public Set<String> getIndexNames() {
+        return Collections.unmodifiableSet(indexes.keySet());
+    }
+
+    /** Находит индекс по колонке или возвращает null, если индекса нет. */
+    public Index findIndexForColumn(String columnName) {
+        for (Index index : indexes.values()) {
+            if (index.getColumnName().equals(columnName)) {
+                return index;
+            }
+        }
+        return null;
+    }
+
+    /** Добавляет строку во все индексы таблицы. */
+    private void addToIndexes(Row row, Object key) {
+        for (Index index : indexes.values()) {
+            index.add(row.get(index.getColumnName()), key);
+        }
+    }
+
+    /** Убирает строку из всех индексов таблицы. */
+    private void removeFromIndexes(Row row, Object key) {
+        for (Index index : indexes.values()) {
+            index.remove(row.get(index.getColumnName()), key);
+        }
     }
 
     /** Приводит значение к типу колонки, добавляя имя колонки в сообщение об ошибке. */
@@ -172,11 +251,6 @@ public class Table implements Serializable, Iterable<Row> {
             throw new IllegalArgumentException(
                     "Колонка " + column.getName() + ": " + e.getMessage());
         }
-    }
-
-    /** Удаляет строку по первичному ключу. Возвращает true, если строка была удалена. */
-    public boolean deleteByKey(Object key) {
-        return rows.remove(key) != null;
     }
 
     /** Перебирает строки таблицы в порядке добавления. */

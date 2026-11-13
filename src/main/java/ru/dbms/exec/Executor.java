@@ -1,5 +1,6 @@
 package ru.dbms.exec;
 
+import ru.dbms.index.Index;
 import ru.dbms.model.Column;
 import ru.dbms.model.Database;
 import ru.dbms.model.Row;
@@ -18,6 +19,7 @@ import ru.dbms.sql.UpdateStatement;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /** Выполняет разобранные запросы над базой данных. */
 public class Executor {
@@ -56,8 +58,8 @@ public class Executor {
         if (statement instanceof DeleteStatement delete) {
             return executeDelete(delete);
         }
-        if (statement instanceof CreateIndexStatement) {
-            throw new SqlException("Индексы пока не поддерживаются");
+        if (statement instanceof CreateIndexStatement createIndex) {
+            return executeCreateIndex(createIndex);
         }
         throw new SqlException("Неизвестный вид запроса: " + statement.getClass().getSimpleName());
     }
@@ -128,17 +130,81 @@ public class Executor {
         Condition condition = prepareCondition(table, statement.condition());
 
         List<List<Object>> rows = new ArrayList<>();
-        for (Row row : table) {
-            if (condition == null || condition.matches(row)) {
-                List<Object> values = new ArrayList<>();
-                for (String columnName : columnNames) {
-                    values.add(row.get(columnName));
-                }
-                rows.add(values);
+        for (Row row : findRows(table, condition)) {
+            List<Object> values = new ArrayList<>();
+            for (String columnName : columnNames) {
+                values.add(row.get(columnName));
             }
+            rows.add(values);
         }
 
         return QueryResult.selection(columnNames, rows);
+    }
+
+    /** CREATE INDEX: создаёт индекс по колонке таблицы. */
+    private QueryResult executeCreateIndex(CreateIndexStatement statement) {
+        Table table = requireTable(statement.tableName());
+        try {
+            table.createIndex(statement.indexName(), statement.columnName());
+        } catch (IllegalArgumentException e) {
+            throw new SqlException(e.getMessage());
+        }
+        return QueryResult.message("Индекс создан: " + statement.indexName()
+                + " по колонке " + statement.columnName());
+    }
+
+    /**
+     * Находит строки, подходящие под условие.
+     * Если по колонке условия есть индекс и знак сравнения позволяет им воспользоваться,
+     * строки берутся через индекс. Иначе таблица перебирается целиком.
+     */
+    private List<Row> findRows(Table table, Condition condition) {
+        if (condition != null) {
+            Set<Object> keys = lookupByIndex(table, condition);
+            if (keys != null) {
+                List<Row> found = new ArrayList<>();
+                for (Object key : keys) {
+                    Row row = table.findByKey(key);
+                    if (row != null) {
+                        found.add(row);
+                    }
+                }
+                return found;
+            }
+        }
+
+        List<Row> found = new ArrayList<>();
+        for (Row row : table) {
+            if (condition == null || condition.matches(row)) {
+                found.add(row);
+            }
+        }
+        return found;
+    }
+
+    /**
+     * Пытается получить ключи строк через индекс.
+     * Возвращает null, если индекса нет или знак сравнения им не поддерживается.
+     */
+    private Set<Object> lookupByIndex(Table table, Condition condition) {
+        Index index = table.findIndexForColumn(condition.columnName());
+        if (index == null) {
+            return null;
+        }
+
+        Object value = condition.value();
+        if (value == null) {
+            return null;
+        }
+
+        return switch (condition.operator()) {
+            case EQUALS -> index.findEqual(value);
+            case LESS -> index.findLess(value, false);
+            case LESS_OR_EQUALS -> index.findLess(value, true);
+            case GREATER -> index.findGreater(value, false);
+            case GREATER_OR_EQUALS -> index.findGreater(value, true);
+            case NOT_EQUALS -> null;
+        };
     }
 
     /** UPDATE: меняет значения в подходящих строках. */
@@ -188,10 +254,8 @@ public class Executor {
      */
     private List<Object> collectKeys(Table table, Condition condition) {
         List<Object> keys = new ArrayList<>();
-        for (Row row : table) {
-            if (condition == null || condition.matches(row)) {
-                keys.add(row.get(table.getPrimaryKey()));
-            }
+        for (Row row : findRows(table, condition)) {
+            keys.add(row.get(table.getPrimaryKey()));
         }
         return keys;
     }
