@@ -86,8 +86,7 @@ public class Table implements Serializable, Iterable<Row> {
 
     /**
      * Вставляет строку в таблицу.
-     * Проверяет, что все колонки существуют, значения подходят по типу,
-     * первичный ключ задан и ещё не занят.
+     * Значения приводятся к типам колонок, первичный ключ должен быть задан и свободен.
      * Колонки, не указанные в строке, получают значение null.
      */
     public void insert(Row row) {
@@ -104,13 +103,7 @@ public class Table implements Serializable, Iterable<Row> {
 
         Row normalized = new Row();
         for (Column column : columns) {
-            Object value = row.get(column.getName());
-            if (!column.getType().accepts(value)) {
-                throw new IllegalArgumentException(
-                        "Значение не подходит типу колонки " + column.getName()
-                                + " (" + column.getType() + "): " + value);
-            }
-            normalized.set(column.getName(), value);
+            normalized.set(column.getName(), convert(column, row.get(column.getName())));
         }
 
         Object key = normalized.get(primaryKey);
@@ -123,6 +116,62 @@ public class Table implements Serializable, Iterable<Row> {
         }
 
         rows.put(key, normalized);
+    }
+
+    /**
+     * Меняет значения в строке с указанным первичным ключом.
+     * Возвращает false, если строки с таким ключом нет.
+     * Если меняется сам первичный ключ, новое значение должно быть свободно.
+     */
+    public boolean updateRow(Object key, Map<String, Object> newValues) {
+        Row existing = rows.get(key);
+        if (existing == null) {
+            return false;
+        }
+        if (newValues == null || newValues.isEmpty()) {
+            throw new IllegalArgumentException("Не указано, какие значения менять");
+        }
+
+        for (String columnName : newValues.keySet()) {
+            if (getColumn(columnName) == null) {
+                throw new IllegalArgumentException(
+                        "Колонка не найдена в таблице " + name + ": " + columnName);
+            }
+        }
+
+        Row updated = new Row();
+        for (Column column : columns) {
+            String columnName = column.getName();
+            Object value = newValues.containsKey(columnName)
+                    ? convert(column, newValues.get(columnName))
+                    : existing.get(columnName);
+            updated.set(columnName, value);
+        }
+
+        Object newKey = updated.get(primaryKey);
+        if (newKey == null) {
+            throw new IllegalArgumentException("Первичный ключ не может быть null");
+        }
+
+        if (!newKey.equals(key)) {
+            if (rows.containsKey(newKey)) {
+                throw new IllegalArgumentException(
+                        "Строка с таким первичным ключом уже существует: " + newKey);
+            }
+            rows.remove(key);
+        }
+        rows.put(newKey, updated);
+        return true;
+    }
+
+    /** Приводит значение к типу колонки, добавляя имя колонки в сообщение об ошибке. */
+    private Object convert(Column column, Object value) {
+        try {
+            return column.getType().convert(value);
+        } catch (IllegalArgumentException e) {
+            throw new IllegalArgumentException(
+                    "Колонка " + column.getName() + ": " + e.getMessage());
+        }
     }
 
     /** Удаляет строку по первичному ключу. Возвращает true, если строка была удалена. */
