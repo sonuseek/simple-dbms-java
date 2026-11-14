@@ -95,11 +95,21 @@ public class Parser {
         }
 
         expectKeyword("VALUES");
-        expectSymbol("(");
-        List<Object> values = parseValueList();
-        expectSymbol(")");
 
-        return new InsertStatement(table, columns, values);
+        List<List<Object>> rows = new ArrayList<>();
+        while (true) {
+            expectSymbol("(");
+            rows.add(parseValueList());
+            expectSymbol(")");
+
+            if (current().isSymbol(",")) {
+                next();
+            } else {
+                break;
+            }
+        }
+
+        return new InsertStatement(table, columns, rows);
     }
 
     /** UPDATE t SET a = 1, b = 'x' [WHERE ...] */

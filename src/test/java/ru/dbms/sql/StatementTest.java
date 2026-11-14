@@ -28,16 +28,18 @@ class StatementTest {
 
     @Test
     void insertWithoutColumnNames() {
-        InsertStatement statement = new InsertStatement("students", null, List.of(1, "Соня"));
+        InsertStatement statement =
+                new InsertStatement("students", null, List.of(List.of(1, "Софья")));
 
         assertFalse(statement.hasColumnNames());
-        assertEquals(2, statement.values().size());
+        assertEquals(1, statement.rowCount());
+        assertEquals(2, statement.rows().get(0).size());
     }
 
     @Test
     void insertWithColumnNames() {
         InsertStatement statement =
-                new InsertStatement("students", List.of("id", "name"), List.of(1, "Соня"));
+                new InsertStatement("students", List.of("id", "name"), List.of(List.of(1, "Софья")));
 
         assertTrue(statement.hasColumnNames());
         assertEquals("id", statement.columnNames().get(0));
@@ -46,12 +48,27 @@ class StatementTest {
     @Test
     void insertRejectsCountMismatch() {
         assertThrows(SqlException.class,
-                () -> new InsertStatement("students", List.of("id"), List.of(1, 2)));
+                () -> new InsertStatement("students", List.of("id"), List.of(List.of(1, 2))));
     }
 
     @Test
     void insertRejectsEmptyValues() {
         assertThrows(SqlException.class, () -> new InsertStatement("students", null, List.of()));
+    }
+
+    @Test
+    void insertKeepsSeveralRows() {
+        InsertStatement statement = new InsertStatement("students", null,
+                List.of(List.of(1, "Софья"), List.of(2, "Иван")));
+
+        assertEquals(2, statement.rowCount());
+        assertEquals(List.of(2, "Иван"), statement.rows().get(1));
+    }
+
+    @Test
+    void insertRejectsRowsOfDifferentLength() {
+        assertThrows(SqlException.class, () -> new InsertStatement("students", null,
+                List.of(List.of(1, "Софья"), List.of(2))));
     }
 
     @Test

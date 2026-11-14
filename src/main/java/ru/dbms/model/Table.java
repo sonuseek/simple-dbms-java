@@ -3,9 +3,11 @@ package ru.dbms.model;
 import ru.dbms.index.Index;
 
 import java.io.Serializable;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -94,6 +96,51 @@ public class Table implements Serializable, Iterable<Row> {
      * Колонки, не указанные в строке, получают значение null.
      */
     public void insert(Row row) {
+        insertAll(List.of(row == null ? new Row() : row));
+    }
+
+    /**
+     * Вставляет сразу несколько строк.
+     * Сначала проверяются все строки, и только потом выполняется вставка,
+     * поэтому при ошибке в любой из них таблица остаётся без изменений.
+     *
+     * @param newRows строки для вставки
+     */
+    public void insertAll(List<Row> newRows) {
+        if (newRows == null || newRows.isEmpty()) {
+            throw new IllegalArgumentException("Нет строк для вставки");
+        }
+
+        List<Row> prepared = new ArrayList<>();
+        Set<Object> newKeys = new LinkedHashSet<>();
+
+        for (Row row : newRows) {
+            Row normalized = normalize(row);
+            Object key = normalized.get(primaryKey);
+
+            if (key == null) {
+                throw new IllegalArgumentException("Первичный ключ не может быть null");
+            }
+            if (rows.containsKey(key)) {
+                throw new IllegalArgumentException(
+                        "Строка с таким первичным ключом уже существует: " + key);
+            }
+            if (!newKeys.add(key)) {
+                throw new IllegalArgumentException(
+                        "Первичный ключ повторяется внутри запроса: " + key);
+            }
+            prepared.add(normalized);
+        }
+
+        for (Row row : prepared) {
+            Object key = row.get(primaryKey);
+            rows.put(key, row);
+            addToIndexes(row, key);
+        }
+    }
+
+    /** Проверяет колонки строки и приводит значения к типам колонок таблицы. */
+    private Row normalize(Row row) {
         if (row == null) {
             throw new IllegalArgumentException("Строка не может быть null");
         }
@@ -109,18 +156,7 @@ public class Table implements Serializable, Iterable<Row> {
         for (Column column : columns) {
             normalized.set(column.getName(), convert(column, row.get(column.getName())));
         }
-
-        Object key = normalized.get(primaryKey);
-        if (key == null) {
-            throw new IllegalArgumentException("Первичный ключ не может быть null");
-        }
-        if (rows.containsKey(key)) {
-            throw new IllegalArgumentException(
-                    "Строка с таким первичным ключом уже существует: " + key);
-        }
-
-        rows.put(key, normalized);
-        addToIndexes(normalized, key);
+        return normalized;
     }
 
     /**

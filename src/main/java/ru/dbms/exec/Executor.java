@@ -89,31 +89,37 @@ public class Executor {
         return QueryResult.message("Таблица удалена: " + statement.tableName());
     }
 
-    /** INSERT INTO: добавляет строку. */
+    /** INSERT INTO: добавляет одну или несколько строк. */
     private QueryResult executeInsert(InsertStatement statement) {
         Table table = requireTable(statement.tableName());
         List<String> columnNames = statement.hasColumnNames()
                 ? statement.columnNames()
                 : defaultColumnNames(table);
 
-        if (columnNames.size() != statement.values().size()) {
-            throw new SqlException("В таблице " + table.getName() + " колонок "
-                    + columnNames.size() + ", а значений " + statement.values().size());
+        for (String columnName : columnNames) {
+            requireColumn(table, columnName);
         }
 
-        Row row = new Row();
-        for (int i = 0; i < columnNames.size(); i++) {
-            String columnName = columnNames.get(i);
-            requireColumn(table, columnName);
-            row.set(columnName, statement.values().get(i));
+        List<Row> rows = new ArrayList<>();
+        for (List<Object> values : statement.rows()) {
+            if (columnNames.size() != values.size()) {
+                throw new SqlException("В таблице " + table.getName() + " колонок "
+                        + columnNames.size() + ", а значений " + values.size());
+            }
+
+            Row row = new Row();
+            for (int i = 0; i < columnNames.size(); i++) {
+                row.set(columnNames.get(i), values.get(i));
+            }
+            rows.add(row);
         }
 
         try {
-            table.insert(row);
+            table.insertAll(rows);
         } catch (IllegalArgumentException e) {
             throw new SqlException(e.getMessage());
         }
-        return QueryResult.affected(1, "Добавлено строк: 1");
+        return QueryResult.affected(rows.size(), "Добавлено строк: " + rows.size());
     }
 
     /** SELECT: выбирает строки. */

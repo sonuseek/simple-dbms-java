@@ -25,7 +25,8 @@ class ParserTest {
 
         assertEquals("students", statement.tableName());
         assertFalse(statement.hasColumnNames());
-        assertEquals(List.of(1, "Нейгум Софья", 8000.0, Boolean.TRUE), statement.values());
+        assertEquals(1, statement.rowCount());
+        assertEquals(List.of(1, "Нейгум Софья", 8000.0, Boolean.TRUE), statement.rows().get(0));
     }
 
     @Test
@@ -34,7 +35,32 @@ class ParserTest {
                 parse("INSERT INTO students (id, name) VALUES (2, 'Иванов');");
 
         assertEquals(List.of("id", "name"), statement.columnNames());
-        assertEquals(List.of(2, "Иванов"), statement.values());
+        assertEquals(List.of(2, "Иванов"), statement.rows().get(0));
+    }
+
+    @Test
+    void parsesInsertWithSeveralRows() {
+        InsertStatement statement = (InsertStatement)
+                parse("INSERT INTO students VALUES (1, 'Софья'), (2, 'Иван'), (3, 'Пётр');");
+
+        assertEquals(3, statement.rowCount());
+        assertEquals(List.of(1, "Софья"), statement.rows().get(0));
+        assertEquals(List.of(3, "Пётр"), statement.rows().get(2));
+    }
+
+    @Test
+    void parsesInsertWithSeveralRowsAndColumnNames() {
+        InsertStatement statement = (InsertStatement)
+                parse("INSERT INTO students (id, name) VALUES (1, 'Софья'), (2, 'Иван');");
+
+        assertEquals(List.of("id", "name"), statement.columnNames());
+        assertEquals(2, statement.rowCount());
+    }
+
+    @Test
+    void rejectsRowsWithDifferentLength() {
+        assertThrows(SqlException.class,
+                () -> parse("INSERT INTO students VALUES (1, 'Софья'), (2);"));
     }
 
     @Test
@@ -134,19 +160,20 @@ class ParserTest {
         InsertStatement statement = (InsertStatement)
                 parse("INSERT INTO t VALUES (1, 2.5, 'x', TRUE, FALSE, NULL);");
 
-        assertEquals(1, statement.values().get(0));
-        assertEquals(2.5, statement.values().get(1));
-        assertEquals("x", statement.values().get(2));
-        assertEquals(Boolean.TRUE, statement.values().get(3));
-        assertEquals(Boolean.FALSE, statement.values().get(4));
-        assertNull(statement.values().get(5));
+        List<Object> values = statement.rows().get(0);
+        assertEquals(1, values.get(0));
+        assertEquals(2.5, values.get(1));
+        assertEquals("x", values.get(2));
+        assertEquals(Boolean.TRUE, values.get(3));
+        assertEquals(Boolean.FALSE, values.get(4));
+        assertNull(values.get(5));
     }
 
     @Test
     void keepsDateAsTextUntilExecution() {
         InsertStatement statement = (InsertStatement) parse("INSERT INTO t VALUES ('2026-03-15');");
 
-        assertEquals("2026-03-15", statement.values().get(0));
+        assertEquals("2026-03-15", statement.rows().get(0).get(0));
     }
 
     @Test
